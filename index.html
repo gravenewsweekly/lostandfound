@@ -7,30 +7,54 @@
     <link rel="stylesheet" href="style.css">
 </head>
 <body>
-
     <div class="container">
         <header>
             <h1>Lost & Found</h1>
             <nav>
                 <ul>
-                    <li><a href="index.html">Home</a></li>
-                    <li><a href="report-lost.html">Report Lost Item</a></li>
-                    <li><a href="report-found.html">Report Found Item</a></li>
-                    <li><a href="search-contact.html">Search & Contact</a></li>
+                    <li><a href=index.html#" class="active">Home</a></li>
+                    <li><a href="report-lost.html" id="report-lost-link">Report Lost Item</a></li>
+                    <li><a href="report-found.html" id="report-found-link">Report Found Item</a></li>
+                    <li><a href="search-contact.html" id="search-link">Search & Contact</a></li>
                 </ul>
             </nav>
         </header>
 
-        <h2>Recently Reported Items</h2>
-        <ul id="items-list">Loading...</ul>
+        <section id="main-content">
+            <h2>Recently Reported Items</h2>
+            <div class="filter">
+                <label for="category-filter">Filter by:</label>
+                <select id="category-filter">
+                    <option value="all">All</option>
+                    <option value="lost">Lost</option>
+                    <option value="found">Found</option>
+                </select>
+            </div>
+            <ul id="items-list">Loading items...</ul>
 
-        <h2>Report an Item</h2>
-        <form id="reportForm">
-            <input type="text" id="itemName" placeholder="Item Name" required>
-            <input type="text" id="itemDesc" placeholder="Description" required>
-            <input type="text" id="contactInfo" placeholder="Your Contact" required>
-            <button type="submit">Submit</button>
-        </form>
+            <h2 id="form-title">Report an Item</h2>
+            <form id="reportForm" class="hidden">
+                <select id="itemCategory" required>
+                    <option value="" disabled selected>Select Category</option>
+                    <option value="lost">Lost</option>
+                    <option value="found">Found</option>
+                </select>
+                <input type="text" id="itemName" placeholder="Item Name" required>
+                <textarea id="itemDesc" placeholder="Description" required></textarea>
+                <input type="email" id="contactInfo" placeholder="Your Email" required>
+                <button type="submit">Submit</button>
+            </form>
+
+            <div id="search-section" class="hidden">
+                <h2>Search Items</h2>
+                <input type="text" id="search-input" placeholder="Search by name or description...">
+                <ul id="search-results"></ul>
+            </div>
+        </section>
+
+        <footer>
+            <p>&copy; 2025 Lost & Found. Powered by xAI.</p>
+        </footer>
     </div>
 
     <script>
@@ -38,52 +62,141 @@
         const apiKey = "$2a$10$IB0aDWkdR.jr6RZcSTel..dmzWWK2MYgH38SNu2WNXkH9BZng2zcq";
         const apiUrl = `https://api.jsonbin.io/v3/b/${binId}/latest`;
 
+        // Fetch and display items
         async function fetchItems() {
             try {
                 const response = await fetch(apiUrl, {
                     headers: { "X-Master-Key": apiKey }
                 });
+                if (!response.ok) throw new Error("Network response was not ok");
                 const data = await response.json();
                 const items = data.record.items || [];
-                const itemList = document.getElementById("items-list");
-                itemList.innerHTML = items.length 
-                    ? items.map(item => `<li><strong>${item.name}</strong>: ${item.desc} - Contact: ${item.contact}</li>`).join("")
-                    : "<li>No items found.</li>";
+                displayItems(items);
             } catch (error) {
                 console.error("Error fetching items:", error);
-                document.getElementById("items-list").innerHTML = "<li>Error loading items.</li>";
+                document.getElementById("items-list").innerHTML = "<li>Failed to load items. Please try again later.</li>";
             }
         }
 
+        // Display items with filter
+        function displayItems(items) {
+            const filter = document.getElementById("category-filter").value;
+            const itemList = document.getElementById("items-list");
+            const filteredItems = filter === "all" ? items : items.filter(item => item.category === filter);
+            
+            itemList.innerHTML = filteredItems.length
+                ? filteredItems.map(item => `
+                    <li class="${item.category}">
+                        <strong>${item.name}</strong> (${item.category})<br>
+                        ${item.desc}<br>
+                        <small>Contact: ${item.contact} | Reported: ${new Date(item.timestamp).toLocaleString()}</small>
+                    </li>`).join("")
+                : "<li>No items match your filter.</li>";
+        }
+
+        // Submit new item
         async function submitItem(event) {
             event.preventDefault();
+            const category = document.getElementById("itemCategory").value;
             const name = document.getElementById("itemName").value;
             const desc = document.getElementById("itemDesc").value;
             const contact = document.getElementById("contactInfo").value;
+            const timestamp = new Date().toISOString();
 
-            const response = await fetch(apiUrl, {
-                headers: { "X-Master-Key": apiKey }
-            });
-            const data = await response.json();
-            const items = data.record.items || [];
-            items.push({ name, desc, contact });
+            try {
+                const response = await fetch(apiUrl, {
+                    headers: { "X-Master-Key": apiKey }
+                });
+                const data = await response–
 
-            await fetch(`https://api.jsonbin.io/v3/b/${binId}`, {
-                method: "PUT",
-                headers: {
-                    "Content-Type": "application/json",
-                    "X-Master-Key": apiKey
-                },
-                body: JSON.stringify({ items })
-            });
+json();
+                const items = data.record.items || [];
+                items.push({ category, name, desc, contact, timestamp });
 
-            fetchItems();
-            document.getElementById("reportForm").reset();
+                const updateResponse = await fetch(`https://api.jsonbin.io/v3/b/${binId}`, {
+                    method: "PUT",
+                    headers: {
+                        "Content-Type": "application/json",
+                        "X-Master-Key": apiKey
+                    },
+                    body: JSON.stringify({ items })
+                });
+
+                if (!updateResponse.ok) throw new Error("Failed to update items");
+                fetchItems();
+                document.getElementById("reportForm").reset();
+                toggleSection("items-list");
+            } catch (error) {
+                console.error("Error submitting item:", error);
+                alert("Failed to submit item. Please try again.");
+            }
         }
 
+        // Search functionality
+        function searchItems() {
+            const query = document.getElementById("search-input").value.toLowerCase();
+            fetch(apiUrl, {
+                headers: { "X-Master-Key": apiKey }
+            })
+            .then(response => response.json())
+            .then(data => {
+                const items = data.record.items || [];
+                const results = items.filter(item => 
+                    item.name.toLowerCase().includes(query) || 
+                    item.desc.toLowerCase().includes(query)
+                );
+                document.getElementById("search-results").innerHTML = results.length
+                    ? results.map(item => `
+                        <li class="${item.category}">
+                            <strong>${item.name}</strong> (${item.category})<br>
+                            ${item.desc}<br>
+                            <small>Contact: ${item.contact}</small>
+                        </li>`).join("")
+                    : "<li>No results found.</li>";
+            });
+        }
+
+        // Toggle sections
+        function toggleSection(activeSection) {
+            const sections = ["items-list", "reportForm", "search-section"];
+            sections.forEach(section => {
+                const el = document.getElementById(section === "items-list" ? section : section);
+                el.classList.toggle("hidden", section !== activeSection);
+            });
+            document.getElementById("form-title").textContent = 
+                activeSection === "reportForm" ? "Report an Item" : "Recently Reported Items";
+            document.querySelectorAll("nav a").forEach(link => link.classList.remove("active"));
+            if (activeSection === "items-list") document.querySelector("nav a[href='#']").classList.add("active");
+        }
+
+        // Event listeners
         document.getElementById("reportForm").addEventListener("submit", submitItem);
+        document.getElementById("category-filter").addEventListener("change", fetchItems);
+        document.getElementById("search-input").addEventListener("input", searchItems);
+        document.getElementById("report-lost-link").addEventListener("click", (e) => {
+            e.preventDefault();
+            document.getElementById("itemCategory").value = "lost";
+            toggleSection("reportForm");
+            e.target.classList.add("active");
+        });
+        document.getElementById("report-found-link").addEventListener("click", (e) => {
+            e.preventDefault();
+            document.getElementById("itemCategory").value = "found";
+            toggleSection("reportForm");
+            e.target.classList.add("active");
+        });
+        document.getElementById("search-link").addEventListener("click", (e) => {
+            e.preventDefault();
+            toggleSection("search-section");
+            e.target.classList.add("active");
+        });
+        document.querySelector("nav a[href='#']").addEventListener("click", (e) => {
+            e.preventDefault();
+            toggleSection("items-list");
+        });
+
+        // Initial load
         fetchItems();
     </script>
-
 </body>
 </html>
