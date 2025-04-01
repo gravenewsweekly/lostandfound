@@ -12,7 +12,7 @@
             <h1>Lost & Found</h1>
             <nav>
                 <ul>
-                    <li><a href=index.html#" class="active">Home</a></li>
+                    <li><a href="index.html" class="active">Home</a></li>
                     <li><a href="report-lost.html" id="report-lost-link">Report Lost Item</a></li>
                     <li><a href="report-found.html" id="report-found-link">Report Found Item</a></li>
                     <li><a href="search-contact.html" id="search-link">Search & Contact</a></li>
@@ -41,19 +41,20 @@
                 </select>
                 <input type="text" id="itemName" placeholder="Item Name" required>
                 <textarea id="itemDesc" placeholder="Description" required></textarea>
+                <input type="text" id="itemLocation" placeholder="Location" required>
                 <input type="email" id="contactInfo" placeholder="Your Email" required>
                 <button type="submit">Submit</button>
             </form>
 
             <div id="search-section" class="hidden">
                 <h2>Search Items</h2>
-                <input type="text" id="search-input" placeholder="Search by name or description...">
+                <input type="text" id="search-input" placeholder="Search by name, description, or location...">
                 <ul id="search-results"></ul>
             </div>
         </section>
 
         <footer>
-            <p>&copy; 2025 Lost & Found. Powered by xAI.</p>
+            <p>© 2025 Lost & Found. Powered by xAI.</p>
         </footer>
     </div>
 
@@ -86,10 +87,11 @@
             
             itemList.innerHTML = filteredItems.length
                 ? filteredItems.map(item => `
-                    <li class="${item.category}">
-                        <strong>${item.name}</strong> (${item.category})<br>
-                        ${item.desc}<br>
-                        <small>Contact: ${item.contact} | Reported: ${new Date(item.timestamp).toLocaleString()}</small>
+                    <li class="${item.category || 'unknown'}">
+                        <strong>${item.name || "Unnamed"}</strong> (${item.category || "N/A"})<br>
+                        ${item.desc || "No description"}<br>
+                        <b>${item.category === "lost" ? "Lost" : "Found"} at:</b> ${item.location || "Unknown location"}<br>
+                        <small>Contact: ${item.contact || "No contact"} | Reported: ${item.timestamp ? new Date(item.timestamp).toLocaleString() : "Unknown time"}</small>
                     </li>`).join("")
                 : "<li>No items match your filter.</li>";
         }
@@ -98,20 +100,25 @@
         async function submitItem(event) {
             event.preventDefault();
             const category = document.getElementById("itemCategory").value;
-            const name = document.getElementById("itemName").value;
-            const desc = document.getElementById("itemDesc").value;
-            const contact = document.getElementById("contactInfo").value;
+            const name = document.getElementById("itemName").value.trim();
+            const desc = document.getElementById("itemDesc").value.trim();
+            const location = document.getElementById("itemLocation").value.trim();
+            const contact = document.getElementById("contactInfo").value.trim();
             const timestamp = new Date().toISOString();
+
+            if (!category || !name || !desc || !location || !contact) {
+                alert("Please fill in all fields correctly.");
+                return;
+            }
 
             try {
                 const response = await fetch(apiUrl, {
                     headers: { "X-Master-Key": apiKey }
                 });
-                const data = await response–
-
-json();
+                if (!response.ok) throw new Error("Failed to fetch current data");
+                const data = await response.json();
                 const items = data.record.items || [];
-                items.push({ category, name, desc, contact, timestamp });
+                items.push({ category, name, desc, location, contact, timestamp });
 
                 const updateResponse = await fetch(`https://api.jsonbin.io/v3/b/${binId}`, {
                     method: "PUT",
@@ -123,7 +130,7 @@ json();
                 });
 
                 if (!updateResponse.ok) throw new Error("Failed to update items");
-                fetchItems();
+                fetchItems(); // Refresh the list
                 document.getElementById("reportForm").reset();
                 toggleSection("items-list");
             } catch (error) {
@@ -134,25 +141,41 @@ json();
 
         // Search functionality
         function searchItems() {
-            const query = document.getElementById("search-input").value.toLowerCase();
+            const query = document.getElementById("search-input").value.trim().toLowerCase();
+            const resultsList = document.getElementById("search-results");
+
+            if (!query) {
+                resultsList.innerHTML = "<li>Enter a search term to see results.</li>";
+                return;
+            }
+
             fetch(apiUrl, {
                 headers: { "X-Master-Key": apiKey }
             })
-            .then(response => response.json())
+            .then(response => {
+                if (!response.ok) throw new Error("Failed to fetch data");
+                return response.json();
+            })
             .then(data => {
                 const items = data.record.items || [];
                 const results = items.filter(item => 
-                    item.name.toLowerCase().includes(query) || 
-                    item.desc.toLowerCase().includes(query)
+                    (item.name && item.name.toLowerCase().includes(query)) || 
+                    (item.desc && item.desc.toLowerCase().includes(query)) ||
+                    (item.location && item.location.toLowerCase().includes(query))
                 );
-                document.getElementById("search-results").innerHTML = results.length
+                resultsList.innerHTML = results.length
                     ? results.map(item => `
-                        <li class="${item.category}">
-                            <strong>${item.name}</strong> (${item.category})<br>
-                            ${item.desc}<br>
-                            <small>Contact: ${item.contact}</small>
+                        <li class="${item.category || 'unknown'}">
+                            <strong>${item.name || "Unnamed"}</strong> (${item.category || "N/A"})<br>
+                            ${item.desc || "No description"}<br>
+                            <b>${item.category === "lost" ? "Lost" : "Found"} at:</b> ${item.location || "Unknown location"}<br>
+                            <small>Contact: ${item.contact || "No contact"}</small>
                         </li>`).join("")
                     : "<li>No results found.</li>";
+            })
+            .catch(error => {
+                console.error("Error searching items:", error);
+                resultsList.innerHTML = "<li>Failed to load results.</li>";
             });
         }
 
@@ -160,13 +183,14 @@ json();
         function toggleSection(activeSection) {
             const sections = ["items-list", "reportForm", "search-section"];
             sections.forEach(section => {
-                const el = document.getElementById(section === "items-list" ? section : section);
+                const el = document.getElementById(section);
                 el.classList.toggle("hidden", section !== activeSection);
             });
             document.getElementById("form-title").textContent = 
                 activeSection === "reportForm" ? "Report an Item" : "Recently Reported Items";
             document.querySelectorAll("nav a").forEach(link => link.classList.remove("active"));
             if (activeSection === "items-list") document.querySelector("nav a[href='#']").classList.add("active");
+            else document.getElementById(activeSection === "reportForm" ? "report-" + document.getElementById("itemCategory").value + "-link" : "search-link").classList.add("active");
         }
 
         // Event listeners
@@ -177,18 +201,15 @@ json();
             e.preventDefault();
             document.getElementById("itemCategory").value = "lost";
             toggleSection("reportForm");
-            e.target.classList.add("active");
         });
         document.getElementById("report-found-link").addEventListener("click", (e) => {
             e.preventDefault();
             document.getElementById("itemCategory").value = "found";
             toggleSection("reportForm");
-            e.target.classList.add("active");
         });
         document.getElementById("search-link").addEventListener("click", (e) => {
             e.preventDefault();
             toggleSection("search-section");
-            e.target.classList.add("active");
         });
         document.querySelector("nav a[href='#']").addEventListener("click", (e) => {
             e.preventDefault();
