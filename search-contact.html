@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Search Lost Items</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+    <div class="container">
+        <h1>Search for Your Lost Item</h1>
+        <p>Enter the item name or location to search.</p>
+
+        <input type="text" id="searchBox" placeholder="Enter item name or location">
+        <button onclick="searchItems()">Search</button>
+
+        <h2>Results:</h2>
+        <ul id="results"></ul>
+
+        <p><a href="index.html">Back to Home</a></p>
+    </div>
+
+    <script>
+        const binId = "67ec30d28960c979a57c77df";
+        const apiKey = "$2a$10$IB0aDWkdR.jr6RZcSTel..dmzWWK2MYgH38SNu2WNXkH9BZng2zcq";
+        const apiUrl = `https://api.jsonbin.io/v3/b/${binId}/latest`;
+
+        async function searchItems() {
+            const query = document.getElementById("searchBox").value.toLowerCase();
+            const response = await fetch(apiUrl, {
+                headers: { "X-Master-Key": apiKey }
+            });
+            const data = await response.json();
+            const items = data.record.foundItems || [];
+
+            const resultsList = document.getElementById("results");
+            resultsList.innerHTML = "";
+
+            const filteredItems = items.filter(item => 
+                item.name.toLowerCase().includes(query) || 
+                item.location.toLowerCase().includes(query)
+            );
+
+            if (filteredItems.length === 0) {
+                resultsList.innerHTML = "<li>No items found.</li>";
+                return;
+            }
+
+            filteredItems.forEach(item => {
+                const li = document.createElement("li");
+                li.innerHTML = `
+                    <strong>${item.name}</strong> - ${item.desc} <br>
+                    <b>Found at:</b> ${item.location} <br>
+                    <b>Contact:</b> ${item.contact} <br><br>
+                `;
+                resultsList.appendChild(li);
+            });
+        }
+    </script>
+
+</body>
+</html>
