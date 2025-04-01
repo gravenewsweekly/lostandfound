@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Report Found Item</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+    <div class="container">
+        <h1>Report Found Item</h1>
+        <p>Fill in the details below to report an item you found.</p>
+
+        <form id="foundItemForm">
+            <label for="itemName">Item Name:</label>
+            <input type="text" id="itemName" required>
+
+            <label for="itemDesc">Description:</label>
+            <input type="text" id="itemDesc" required>
+
+            <label for="foundLocation">Found Location:</label>
+            <input type="text" id="foundLocation" required>
+
+            <label for="contactInfo">Your Contact Info:</label>
+            <input type="text" id="contactInfo" required>
+
+            <button type="submit">Submit Report</button>
+        </form>
+
+        <p><a href="index.html">Back to Home</a></p>
+    </div>
+
+    <script>
+        const binId = "67ec30d28960c979a57c77df";
+        const apiKey = "$2a$10$IB0aDWkdR.jr6RZcSTel..dmzWWK2MYgH38SNu2WNXkH9BZng2zcq";
+        const apiUrl = `https://api.jsonbin.io/v3/b/${binId}/latest`;
+
+        async function submitFoundItem(event) {
+            event.preventDefault();
+
+            const name = document.getElementById("itemName").value;
+            const desc = document.getElementById("itemDesc").value;
+            const location = document.getElementById("foundLocation").value;
+            const contact = document.getElementById("contactInfo").value;
+
+            const response = await fetch(apiUrl, {
+                headers: { "X-Master-Key": apiKey }
+            });
+            const data = await response.json();
+            const items = data.record.foundItems || [];
+
+            items.push({ name, desc, location, contact });
+
+            await fetch(`https://api.jsonbin.io/v3/b/${binId}`, {
+                method: "PUT",
+                headers: {
+                    "Content-Type": "application/json",
+                    "X-Master-Key": apiKey
+                },
+                body: JSON.stringify({ foundItems: items })
+            });
+
+            alert("Found item reported successfully!");
+            document.getElementById("foundItemForm").reset();
+        }
+
+        document.getElementById("foundItemForm").addEventListener("submit", submitFoundItem);
+    </script>
+
+</body>
+</html>
