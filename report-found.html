@@ -7,28 +7,41 @@
     <link rel="stylesheet" href="style.css">
 </head>
 <body>
-
     <div class="container">
-        <h1>Report Found Item</h1>
-        <p>Fill in the details below to report an item you found.</p>
+        <header>
+            <h1>Report Found Item</h1>
+            <p>Fill in the details below to report an item you found.</p>
+        </header>
 
         <form id="foundItemForm">
-            <label for="itemName">Item Name:</label>
-            <input type="text" id="itemName" required>
+            <div class="form-group">
+                <label for="itemName">Item Name:</label>
+                <input type="text" id="itemName" placeholder="e.g., Black Wallet" required>
+            </div>
 
-            <label for="itemDesc">Description:</label>
-            <input type="text" id="itemDesc" required>
+            <div class="form-group">
+                <label for="itemDesc">Description:</label>
+                <textarea id="itemDesc" placeholder="e.g., Found near the park, contains some cash" required></textarea>
+            </div>
 
-            <label for="foundLocation">Found Location:</label>
-            <input type="text" id="foundLocation" required>
+            <div class="form-group">
+                <label for="foundLocation">Found Location:</label>
+                <input type="text" id="foundLocation" placeholder="e.g., Central Park Bench" required>
+            </div>
 
-            <label for="contactInfo">Your Contact Info:</label>
-            <input type="text" id="contactInfo" required>
+            <div class="form-group">
+                <label for="contactInfo">Your Contact Info:</label>
+                <input type="email" id="contactInfo" placeholder="e.g., yourname@example.com" required>
+            </div>
 
             <button type="submit">Submit Report</button>
         </form>
 
-        <p><a href="index.html">Back to Home</a></p>
+        <p class="back-link"><a href="index.html">Back to Home</a></p>
+
+        <footer>
+            <p>© 2025 Lost & Found. Powered by xAI.</p>
+        </footer>
     </div>
 
     <script>
@@ -39,34 +52,50 @@
         async function submitFoundItem(event) {
             event.preventDefault();
 
-            const name = document.getElementById("itemName").value;
-            const desc = document.getElementById("itemDesc").value;
-            const location = document.getElementById("foundLocation").value;
-            const contact = document.getElementById("contactInfo").value;
+            const name = document.getElementById("itemName").value.trim();
+            const desc = document.getElementById("itemDesc").value.trim();
+            const location = document.getElementById("foundLocation").value.trim();
+            const contact = document.getElementById("contactInfo").value.trim();
+            const timestamp = new Date().toISOString();
 
-            const response = await fetch(apiUrl, {
-                headers: { "X-Master-Key": apiKey }
-            });
-            const data = await response.json();
-            const items = data.record.foundItems || [];
+            if (!name || !desc || !location || !contact) {
+                alert("Please fill in all fields correctly.");
+                return;
+            }
 
-            items.push({ name, desc, location, contact });
+            try {
+                // Fetch current data
+                const response = await fetch(apiUrl, {
+                    headers: { "X-Master-Key": apiKey }
+                });
+                if (!response.ok) throw new Error("Failed to fetch current data");
+                const data = await response.json();
+                
+                // Ensure foundItems exists, even if data structure changes
+                const foundItems = data.record.foundItems || [];
+                foundItems.push({ name, desc, location, contact, timestamp, category: "found" });
 
-            await fetch(`https://api.jsonbin.io/v3/b/${binId}`, {
-                method: "PUT",
-                headers: {
-                    "Content-Type": "application/json",
-                    "X-Master-Key": apiKey
-                },
-                body: JSON.stringify({ foundItems: items })
-            });
+                // Update JSONBin
+                const updateResponse = await fetch(`https://api.jsonbin.io/v3/b/${binId}`, {
+                    method: "PUT",
+                    headers: {
+                        "Content-Type": "application/json",
+                        "X-Master-Key": apiKey
+                    },
+                    body: JSON.stringify({ foundItems })
+                });
 
-            alert("Found item reported successfully!");
-            document.getElementById("foundItemForm").reset();
+                if (!updateResponse.ok) throw new Error("Failed to update data");
+                
+                alert("Found item reported successfully!");
+                document.getElementById("foundItemForm").reset();
+            } catch (error) {
+                console.error("Error submitting found item:", error);
+                alert("An error occurred while submitting. Please try again later.");
+            }
         }
 
         document.getElementById("foundItemForm").addEventListener("submit", submitFoundItem);
     </script>
-
 </body>
 </html>
