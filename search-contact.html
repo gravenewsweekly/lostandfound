@@ -3,22 +3,31 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Search Lost Items</title>
+    <title>Search Lost & Found Items</title>
     <link rel="stylesheet" href="style.css">
 </head>
 <body>
-
     <div class="container">
-        <h1>Search for Your Lost Item</h1>
-        <p>Enter the item name or location to search.</p>
+        <header>
+            <h1>Search Lost & Found Items</h1>
+            <p>Enter the item name, description, or location to find matches.</p>
+        </header>
 
-        <input type="text" id="searchBox" placeholder="Enter item name or location">
-        <button onclick="searchItems()">Search</button>
+        <div class="search-bar">
+            <input type="text" id="searchBox" placeholder="e.g., wallet, park, black">
+            <button id="searchButton">Search</button>
+        </div>
 
-        <h2>Results:</h2>
-        <ul id="results"></ul>
+        <section id="results-section">
+            <h2>Results:</h2>
+            <ul id="results">Enter a search term to see results...</ul>
+        </section>
 
-        <p><a href="index.html">Back to Home</a></p>
+        <p class="back-link"><a href="index.html">Back to Home</a></p>
+
+        <footer>
+            <p>© 2025 Lost & Found. Powered by xAI.</p>
+        </footer>
     </div>
 
     <script>
@@ -27,37 +36,59 @@
         const apiUrl = `https://api.jsonbin.io/v3/b/${binId}/latest`;
 
         async function searchItems() {
-            const query = document.getElementById("searchBox").value.toLowerCase();
-            const response = await fetch(apiUrl, {
-                headers: { "X-Master-Key": apiKey }
-            });
-            const data = await response.json();
-            const items = data.record.foundItems || [];
-
+            const query = document.getElementById("searchBox").value.trim().toLowerCase();
             const resultsList = document.getElementById("results");
-            resultsList.innerHTML = "";
 
-            const filteredItems = items.filter(item => 
-                item.name.toLowerCase().includes(query) || 
-                item.location.toLowerCase().includes(query)
-            );
-
-            if (filteredItems.length === 0) {
-                resultsList.innerHTML = "<li>No items found.</li>";
+            if (!query) {
+                resultsList.innerHTML = "<li>Please enter a search term.</li>";
                 return;
             }
 
-            filteredItems.forEach(item => {
-                const li = document.createElement("li");
-                li.innerHTML = `
-                    <strong>${item.name}</strong> - ${item.desc} <br>
-                    <b>Found at:</b> ${item.location} <br>
-                    <b>Contact:</b> ${item.contact} <br><br>
-                `;
-                resultsList.appendChild(li);
-            });
-        }
-    </script>
+            try {
+                const response = await fetch(apiUrl, {
+                    headers: { "X-Master-Key": apiKey }
+                });
+                if (!response.ok) throw new Error("Failed to fetch data");
+                const data = await response.json();
 
+                // Assuming 'items' contains both lost and found with a 'category' field
+                const items = data.record.items || [];
+                const filteredItems = items.filter(item => 
+                    (item.name && item.name.toLowerCase().includes(query)) ||
+                    (item.desc && item.desc.toLowerCase().includes(query)) ||
+                    (item.location && item.location.toLowerCase().includes(query))
+                );
+
+                resultsList.innerHTML = "";
+                if (filteredItems.length === 0) {
+                    resultsList.innerHTML = "<li>No matching items found.</li>";
+                    return;
+                }
+
+                filteredItems.forEach(item => {
+                    const li = document.createElement("li");
+                    li.className = item.category || "unknown";
+                    li.innerHTML = `
+                        <strong>${item.name || "Unnamed Item"}</strong> (${item.category || "N/A"})<br>
+                        ${item.desc || "No description provided"}<br>
+                        <b>${item.category === "lost" ? "Lost" : "Found"} at:</b> ${item.location || "Unknown location"}<br>
+                        <b>Contact:</b> ${item.contact || "No contact info"}<br>
+                        <small>Reported: ${item.timestamp ? new Date(item.timestamp).toLocaleString() : "Unknown time"}</small>
+                    `;
+                    resultsList.appendChild(li);
+                });
+            } catch (error) {
+                console.error("Error searching items:", error);
+                resultsList.innerHTML = "<li>Failed to load results. Please try again later.</li>";
+            }
+        }
+
+        // Real-time search on input
+        document.getElementById("searchBox").addEventListener("input", searchItems);
+        document.getElementById("searchButton").addEventListener("click", (e) => {
+            e.preventDefault();
+            searchItems();
+        });
+    </script>
 </body>
 </html>
